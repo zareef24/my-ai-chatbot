@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My First AI Chatbot</title>
+    <!-- Tailwind CSS CDN for easy styling and responsive design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Marked.js CDN for Markdown rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+    <style>
+        /* Custom styles for a modern and user-friendly chat interface */
+        body {
+            font-family: 'Inter', sans-serif; /* A clean, modern font */
+            background-color: #f0f2f5; /* Light gray background for the page */
+            display: flex;
+            justify-content: center; /* Center content horizontally */
+            align-items: center; /* Center content vertically */
+            min-height: 100vh; /* Ensure the body takes at least the full viewport height */
+            margin: 0; /* Remove default browser margin */
+            padding: 20px; /* Padding around the main chat container */
+            box-sizing: border-box; /* Include padding in element's total width and height */
+        }
+        .chat-container {
+            background-color: #ffffff; /* White background for the chat box */
+            border-radius: 15px; /* Smooth rounded corners for the container */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); /* Soft shadow for depth effect */
+            width: 100%; /* Take full width on small screens */
+            max-width: 600px; /* Maximum width on larger screens */
+            display: flex;
+            flex-direction: column; /* Arrange header, messages, and input vertically */
+            overflow: hidden; /* Ensures content respects border-radius */
+            min-height: 500px; /* Minimum height for a comfortable chat view */
+            max-height: 90vh; /* Max height to fit within typical viewports, good for mobile */
+        }
+        .chat-header {
+            background-color: #4f46e5; /* Primary indigo color for the header */
+            color: white; /* White text for contrast */
+            padding: 1rem; /* Spacing inside the header */
+            text-align: center; /* Center-align the header text */
+            font-size: 1.5rem; /* Larger font size for prominence */
+            font-weight: bold; /* Bold text */
+            border-top-left-radius: 15px; /* Match container's top-left radius */
+            border-top-right-radius: 15px; /* Match container's top-right radius */
+        }
+        .chat-messages {
+            flex-grow: 1; /* Allows the message area to expand and fill available vertical space */
+            padding: 1.5rem; /* Padding around the chat messages */
+            overflow-y: auto; /* Enable vertical scrolling if messages overflow */
+            display: flex;
+            flex-direction: column; /* Stack messages one below the other */
+            gap: 1rem; /* Space between individual message bubbles */
+        }
+        .message {
+            max-width: 80%; /* Limit message bubble width for readability */
+            padding: 0.8rem 1.2rem; /* Padding inside each message bubble */
+            border-radius: 18px; /* Heavily rounded corners for message bubbles */
+            line-height: 1.4; /* Improve text readability with line spacing */
+            word-wrap: break-word; /* Prevents long words from overflowing */
+            position: relative; /* For positioning the speak button */
+        }
+        .message.user {
+            background-color: #e0f2fe; /* Light blue background for user messages */
+            align-self: flex-end; /* Align user messages to the right side of the chat area */
+            color: #333; /* Dark text for user messages */
+        }
+        .message.ai {
+            background-color: #ede9fe; /* Light purple background for AI messages */
+            align-self: flex-start; /* Align AI messages to the left side of the chat area */
+            color: #333; /* Dark text for AI messages */
+            display: flex; /* Use flexbox to align text and speak button */
+            align-items: center;
+            gap: 8px; /* Space between text and button */
+        }
+        .chat-input-area {
+            display: flex; /* Use flexbox to align input and button horizontally */
+            flex-wrap: wrap; /* Allow items to wrap to the next line on small screens */
+            padding: 1rem; /* Padding around the input area */
+            border-top: 1px solid #e2e8f0; /* Separator line above the input */
+            gap: 0.5rem; /* Space between the input field and the send button */
+            align-items: center; /* Vertically align items in the input area */
+        }
+        .chat-input {
+            flex-grow: 1; /* Input field takes most of the available space */
+            padding: 0.8rem 1rem; /* Padding inside the input field */
+            border: 1px solid #cbd5e1; /* Subtle border for the input field */
+            border-radius: 20px; /* Pill-shaped input field */
+            outline: none; /* Remove default focus outline */
+            font-size: 1rem; /* Standard font size for input text */
+            min-width: 150px; /* Ensure input doesn't get too small */
+        }
+        .chat-input:focus {
+            border-color: #4f46e5; /* Highlight border with primary color on focus */
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2); /* Soft shadow on focus */
+        }
+        .send-button {
+            background-color: #4f46e5; /* Primary indigo color for the button */
+            color: white; /* White text for the button */
+            border: none; /* No border for the button */
+            padding: 0.8rem 1.5rem; /* Padding inside the button */
+            border-radius: 20px; /* Pill-shaped button */
+            cursor: pointer; /* Indicate clickable element */
+            font-size: 1rem; /* Standard font size */
+            font-weight: 600; /* Medium bold text */
+            transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth transitions for hover/active states */
+        }
+        .send-button:hover {
+            background-color: #4338ca; /* Slightly darker indigo on hover */
+            transform: translateY(-2px); /* Slight lift effect on hover */
+        }
+        .send-button:active {
+            transform: translateY(0); /* Press-down effect when clicked */
+        }
+        .loading-indicator {
+            text-align: center;
+            padding: 10px;
+            font-style: italic;
+            color: #64748b; /* Gray text for the loading message */
+        }
+        .image-input-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 1rem;
+            border-top: 1px solid #e2e8f0;
+            background-color: #f8fafc; /* Light background for image area */
+            border-bottom-left-radius: 15px;
+            border-bottom-right-radius: 15px;
+            flex-wrap: wrap; /* Allow items to wrap */
+        }
+        .image-preview {
+            max-width: 100px; /* Smaller preview image */
+            max-height: 100px;
+            border-radius: 8px;
+            object-fit: contain; /* Ensure image fits without distortion */
+            border: 1px solid #cbd5e1;
+            padding: 5px;
+        }
+        .image-input-label {
+            background-color: #6366f1; /* Slightly darker indigo for label */
+            color: white;
+            padding: 0.6rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+            white-space: nowrap; /* Prevent text wrapping */
+        }
+        .image-input-label:hover {
+            background-color: #4f46e5;
+        }
+        /* Hide the default file input button */
+        #image-input {
+            display: none;
+        }
+        .clear-image-button {
+            background-color: #ef4444; /* Red for clear button */
+            color: white;
+            border: none;
+            padding: 0.6rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+            white-space: nowrap;
+        }
+        .clear-image-button:hover {
+            background-color: #dc2626;
+        }
+        .message .image-in-message {
+            max-width: 150px; /* Adjust size for images within message bubbles */
+            height: auto;
+            margin-bottom: 5px;
+        }
+
+        /* Styles for tool messages (optional, for debugging) */
+        .message.tool_code {
+            background-color: #fffbeb; /* Light yellow for tool code */
+            color: #78350f; /* Dark brown text */
+            font-size: 0.8em;
+            border-left: 4px solid #f59e0b;
+            padding: 0.5rem 1rem;
+            word-break: break-all; /* Break long strings */
+        }
+        .message.tool_response {
+            background-color: #ecfdf5; /* Light green for tool response */
+            color: #065f46; /* Dark green text */
+            font-size: 0.8em;
+            border-left: 4px solid #10b981;
+            padding: 0.5rem 1rem;
+            word-break: break-all; /* Break long strings */
+        }
+        .feature-buttons-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 1rem;
+            justify-content: center; /* Center buttons */
+            border-top: 1px solid #e2e8f0;
+            background-color: #f8fafc;
+        }
+        .feature-button {
+            background-color: #60a5fa; /* Blue for feature buttons */
+            color: white;
+            border: none;
+            padding: 0.6rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            flex-grow: 1; /* Allow buttons to grow */
+            max-width: 150px; /* Limit individual button width */
+            text-align: center;
+        }
+        .feature-button:hover {
+            background-color: #3b82f6;
+            transform: translateY(-1px);
+        }
+        .feature-button:active {
+            transform: translateY(0);
+        }
+        .speak-button {
+            background-color: #8b5cf6; /* Purple color for speak button */
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.75rem; /* Smaller font for a compact button */
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+            white-space: nowrap;
+            display: inline-flex; /* Align icon and text if any */
+            align-items: center;
+            justify-content: center;
+            line-height: 1; /* Compact line height */
+            height: 28px; /* Fixed height for consistent look */
+            width: 55px; /* Fixed width */
+            flex-shrink: 0; /* Prevent it from shrinking */
+        }
+        .speak-button:hover {
+            background-color: #7c3aed;
+        }
+        .speak-button:disabled {
+            background-color: #a78bfa;
+            cursor: not-allowed;
+        }
+        .mic-button {
+            background-color: #10b981; /* Green color for mic button */
+            color: white;
+            border: none;
+            padding: 0.8rem; /* Make it a square button */
+            border-radius: 50%; /* Make it circular */
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            width: 44px; /* Fixed width and height for circular shape */
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0; /* Prevent it from shrinking */
+        }
+        .mic-button:hover {
+            background-color: #059669;
+            transform: translateY(-2px);
+        }
+        .mic-button:active {
+            transform: translateY(0);
+        }
+        .mic-button.active {
+            background-color: #ef4444; /* Red when active (listening) */
+            animation: pulse 1s infinite alternate; /* Simple pulse animation */
+        }
+        .mic-status {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-left: 10px;
+        }
+        @keyframes pulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.05); }
+        }
+
+        /* Basic Markdown styles - you can enhance these with Tailwind classes if you prefer */
+        .message p { margin-bottom: 0.5em; }
+        .message ul { list-style-type: disc; margin-left: 20px; margin-bottom: 0.5em; }
+        .message ol { list-style-type: decimal; margin-left: 20px; margin-bottom: 0.5em; }
+        .message h1, .message h2, .message h3, .message h4 { font-weight: bold; margin-top: 1em; margin-bottom: 0.5em; }
+        .message code {
+            background-color: #e2e8f0;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+            font-size: 0.9em;
+        }
+        .message pre {
+            background-color: #2d3748; /* Dark background for code blocks */
+            color: #cbd5e1; /* Light text color */
+            padding: 1em;
+            border-radius: 8px;
+            overflow-x: auto; /* Enable horizontal scrolling for long lines */
+            margin-bottom: 1em;
+        }
+        .message pre code {
+            background-color: transparent; /* Override inline code background */
+            padding: 0;
+            border-radius: 0;
+            color: inherit;
+            font-size: inherit;
+        }
+        /* Styling for the new Clear Chat button */
+        #clear-chat-button {
+            background-color: #94a3b8; /* Gray for clear button */
+            color: white;
+            border: none;
+            padding: 0.6rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            flex-grow: 1;
+            max-width: 150px;
+            text-align: center;
+        }
+        #clear-chat-button:hover {
+            background-color: #64748b;
+            transform: translateY(-1px);
+        }
+        #clear-chat-button:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            My AI Chatbot
+        </div>
+        <div class="chat-messages" id="chat-messages">
+            <!-- Initial greeting message from the AI will be added by JS now -->
+        </div>
+        <div class="loading-indicator" id="loading-indicator" style="display: none;">
+            AI is thinking...
+        </div>
+
+        <!-- Image Input Area -->
+        <div class="image-input-container" id="image-input-container">
+            <input type="file" id="image-input" accept="image/*">
+            <label for="image-input" class="image-input-label">Choose Image</label>
+            <img id="image-preview" class="image-preview" style="display: none;" alt="Image preview">
+            <button id="clear-image-button" class="clear-image-button" style="display: none;">Clear Image</button>
+        </div>
+
+        <!-- Feature Buttons Container -->
+        <div class="feature-buttons-container">
+            <button id="research-button" class="feature-button">Deep Research</button>
+            <button id="canvas-button" class="feature-button">Diagram Concept</button>
+            <button id="map-button" class="feature-button">Map Info</button>
+            <button id="clear-chat-button" class="feature-button">Clear Chat</button> <!-- NEW CLEAR CHAT BUTTON -->
+        </div>
+
+        <div class="chat-input-area">
+            <input type="text" id="user-input" placeholder="Type your message...">
+            <button id="mic-button" class="mic-button" title="Speak your message">🎤</button>
+            <button id="send-button">Send</button>
+            <span id="mic-status" class="mic-status" style="display: none;"></span>
+        </div>
+    </div>
+
+    <script type="module">
+        // Get references to the HTML elements
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const chatMessages = document.getElementById('chat-messages');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const imageInput = document.getElementById('image-input');
+        const imagePreview = document.getElementById('image-preview');
+        const clearImageButton = document.getElementById('clear-image-button');
+        const researchButton = document.getElementById('research-button');
+        const canvasButton = document.getElementById('canvas-button');
+        const mapButton = document.getElementById('map-button');
+        const micButton = document.getElementById('mic-button');
+        const micStatus = document.getElementById('mic-status');
+        const clearChatButton = document.getElementById('clear-chat-button'); // NEW REFERENCE
+
+        let selectedImageData = null; // Stores the Base64 image data
+        let selectedImageMimeType = null; // Stores the MIME type of the selected image
+        let chatHistory = []; // Stores the ongoing conversation history for the AI
+
+        let currentUtterance = null; // Variable to hold the speech synthesis utterance
+
+        // Initialize Speech Recognition
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false; // Listen for a single utterance
+            recognition.lang = 'en-US'; // Set recognition language
+            recognition.interimResults = false; // Only return final results
+        } else {
+            console.warn("Speech Recognition API not supported in this browser.");
+            micButton.disabled = true;
+            micButton.title = "Speech input not supported";
+        }
+
+        /**
+         * Converts text to speech.
+         * @param {string} text - The text to speak.
+         */
+        function speakText(text) {
+            if (currentUtterance && window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+            }
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+
+            utterance.onend = () => { currentUtterance = null; };
+            utterance.onerror = (event) => { console.error('Speech synthesis error:', event.error); currentUtterance = null; };
+
+            window.speechSynthesis.speak(utterance);
+            currentUtterance = utterance;
+        }
+
+        /**
+         * Adds a new message to the chat display.
+         * @param {string} text - The content of the message.
+         * @param {string} sender - The sender ('user', 'ai', 'tool_code', 'tool_response').
+         * @param {string|null} imageUrl - Optional: URL/Data URL of an image to display with the message.
+         */
+        function addMessage(text, sender, imageUrl = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', sender);
+
+            if (imageUrl) {
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.classList.add('image-in-message');
+                messageDiv.appendChild(img);
+            }
+
+            const textContentContainer = document.createElement('div');
+            textContentContainer.classList.add('message-text-content');
+
+            if (sender === 'ai') {
+                if (typeof marked !== 'undefined' && marked.parse) {
+                    textContentContainer.innerHTML = marked.parse(text);
+                } else {
+                    textContentContainer.textContent = text;
+                    console.warn("Marked.js not loaded. AI text not rendered as Markdown.");
+                }
+
+                const speakButton = document.createElement('button');
+                speakButton.classList.add('speak-button');
+                speakButton.innerHTML = '🔊';
+                speakButton.title = 'Speak message aloud';
+                speakButton.addEventListener('click', () => speakText(text));
+                messageDiv.appendChild(textContentContainer);
+                messageDiv.appendChild(speakButton);
+            } else {
+                textContentContainer.textContent = text;
+                messageDiv.appendChild(textContentContainer);
+            }
+
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        /**
+         * Clears the selected image and hides its preview.
+         */
+        function clearImageSelection() {
+            imageInput.value = '';
+            imagePreview.src = '';
+            imagePreview.style.display = 'none';
+            clearImageButton.style.display = 'none';
+            selectedImageData = null;
+            selectedImageMimeType = null;
+        }
+
+        /**
+         * Clears the entire chat history and display. (NEW FUNCTION)
+         */
+        function clearChatHistory() {
+            chatMessages.innerHTML = ''; // Remove all child elements from the chat display
+            chatHistory = []; // Reset the AI's conversation memory
+            addMessage("Hi there! What can I help you with today?", 'ai'); // Add the initial greeting back
+            chatHistory.push({ role: "model", parts: [{ text: "Hi there! What can I help you with today?" }] });
+            userInput.focus(); // Focus the input field
+            // Optional: Stop any ongoing speech if clearing chat
+            if (currentUtterance && window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+            }
+        }
+
+
+        /**
+         * Simulates a google_search tool.
+         * @param {string} query - The search query.
+         * @returns {string} A simulated search result.
+         */
+        async function google_search(query) {
+            console.log(`Simulating google_search for query: "${query}"`);
+            addMessage(`Calling tool: google_search("${query}")`, 'tool_code');
+
+            await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
+
+            let simulatedResultText = `Simulated search results for "${query}": `;
+            if (query.toLowerCase().includes("capital")) {
+                simulatedResultText += `The capital information for this query is found. For example, Paris is the capital of France.`;
+            } else if (query.toLowerCase().includes("population")) {
+                simulatedResultText += `Population data related to this query is available. Large cities often have populations in the millions.`;
+            } else if (query.toLowerCase().includes("history")) {
+                simulatedResultText += `Historical overview found. Key events include [event 1] and [event 2].`;
+            } else if (query.toLowerCase().includes("science")) {
+                simulatedResultText += `Scientific articles and educational resources found. Emphasis on recent discoveries.`;
+            } else {
+                simulatedResultText += `General information about "${query}" found across various reliable sources.`;
+            }
+
+            return JSON.stringify({ results: simulatedResultText });
+        }
+
+        /**
+         * A map of available tool functions.
+         */
+        const availableTools = {
+            google_search: google_search
+        };
+
+        /**
+         * Orchestrates the tool calling process from the AI's functionCall.
+         * @param {object} functionCall - The functionCall object from the AI.
+         * @returns {object} The result of the tool execution wrapped in a functionResponse.
+         */
+        async function _callTool(functionCall) {
+            const toolName = functionCall.name;
+            const toolArgs = functionCall.args;
+
+            if (availableTools[toolName]) {
+                const toolFunction = availableTools[toolName];
+                const toolResult = await toolFunction(toolArgs.query);
+                return {
+                    functionResponse: {
+                        name: toolName,
+                        response: { result: toolResult }
+                    }
+                };
+            } else {
+                console.error(`Tool "${toolName}" not found.`);
+                return {
+                    functionResponse: {
+                        name: toolName,
+                        response: { error: `Tool "${toolName}" not found.` }
+                    }
+                };
+            }
+        }
+
+        /**
+         * Sends message to the AI and processes its response, including tool calls.
+         * @param {string} prefillMessage - Optional message to prefill and send, used by feature buttons.
+         */
+        async function sendMessage(prefillMessage = '') {
+            const userText = prefillMessage || userInput.value.trim();
+            if (userText === '' && !selectedImageData) return;
+
+            if (!prefillMessage) {
+                addMessage(userText, 'user', selectedImageData);
+            } else {
+                addMessage(`Clicked "${prefillMessage.split(' ')[0]}..."`, 'user');
+            }
+
+            userInput.value = '';
+
+            sendButton.disabled = true;
+            micButton.disabled = true;
+            loadingIndicator.style.display = 'block';
+            researchButton.disabled = true;
+            canvasButton.disabled = true;
+            mapButton.disabled = true;
+            clearChatButton.disabled = true; // Disable clear chat button
+
+
+            clearImageSelection();
+
+            let userParts = [];
+            if (userText !== '') {
+                userParts.push({ text: userText });
+            }
+            if (selectedImageData && selectedImageMimeType) {
+                userParts.push({
+                    inlineData: {
+                        mimeType: selectedImageMimeType,
+                        data: selectedImageData.split(',')[1]
+                    }
+                });
+            }
+            if (userParts.length > 0) {
+                chatHistory.push({ role: "user", parts: userParts });
+            }
+
+            const tools = [
+                {
+                    function_declarations: [
+                        {
+                            name: "google_search",
+                            description: "Searches Google for a given query to get up-to-date information. Use this tool only when the user explicitly asks for research or information that requires external lookup beyond general knowledge.",
+                            parameters: {
+                                type: "OBJECT",
+                                properties: {
+                                    query: { type: "STRING", description: "The search query." }
+                                },
+                                required: ["query"]
+                            }
+                        }
+                    ]
+                }
+            ];
+
+            while (true) {
+                try {
+                    const payload = {
+                        contents: chatHistory,
+                        tools: tools,
+                        toolConfig: {
+                            functionCallingConfig: {
+                                mode: "AUTO"
+                            }
+                        }
+                    };
+
+                    const apiKey = "AIzaSyDG9IMFG6yuHuvERTU7ZnvlHjNftRd-Dac"; // <<< PASTE YOUR API KEY HERE!
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 && result.candidates[0].content) {
+                        const candidateContent = result.candidates[0].content;
+
+                        if (candidateContent.parts && candidateContent.parts.length > 0) {
+                            const firstPart = candidateContent.parts[0];
+
+                            if (firstPart.functionCall) {
+                                const functionCall = firstPart.functionCall;
+                                chatHistory.push({ role: "model", parts: [{ functionCall: functionCall }] });
+                                console.log("AI called function:", functionCall.name, functionCall.args);
+
+                                addMessage(`AI is using tool: ${functionCall.name} with query "${functionCall.args.query}"`, 'tool_code');
+
+                                const toolResponse = await _callTool(functionCall);
+                                addMessage(`Tool result: ${JSON.stringify(toolResponse.functionResponse.response.result)}`, 'tool_response');
+                                chatHistory.push({ role: "tool", parts: [{ functionResponse: toolResponse.functionResponse }] });
+
+                                continue;
+
+                            } else if (firstPart.text) {
+                                const aiResponseText = firstPart.text;
+                                addMessage(aiResponseText, 'ai');
+                                chatHistory.push({ role: "model", parts: [{ text: aiResponseText }] });
+                                break;
+                            }
+                        }
+                    } else {
+                        addMessage("Oops! I couldn't generate a response. Please try again.", 'ai');
+                        console.error("AI response structure unexpected:", result);
+                        break;
+                    }
+                } catch (error) {
+                    console.error('Error fetching AI response:', error);
+                    addMessage("I'm sorry, I encountered an error. Please try again later.", 'ai');
+                    break;
+                } finally {
+                    sendButton.disabled = false;
+                    micButton.disabled = false;
+                    loadingIndicator.style.display = 'none';
+                    researchButton.disabled = false;
+                    canvasButton.disabled = false;
+                    mapButton.disabled = false;
+                    clearChatButton.disabled = false; // Re-enable clear chat button
+                    userInput.focus();
+                }
+            }
+        }
+
+        // Event listener for image file selection
+        imageInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    selectedImageData = e.target.result;
+                    selectedImageMimeType = file.type;
+                    imagePreview.src = selectedImageData;
+                    imagePreview.style.display = 'block';
+                    clearImageButton.style.display = 'inline-block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                clearImageSelection();
+            }
+        });
+
+        // Event listener for clear image button
+        clearImageButton.addEventListener('click', clearImageSelection);
+
+        // Event listeners for sending messages (text input)
+        sendButton.addEventListener('click', () => sendMessage());
+        userInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Speech Recognition Events
+        if (recognition) {
+            micButton.addEventListener('click', () => {
+                if (window.speechSynthesis.speaking) {
+                    window.speechSynthesis.cancel();
+                }
+                recognition.start();
+                micButton.classList.add('active');
+                micStatus.textContent = 'Listening...';
+                micStatus.style.display = 'inline';
+                userInput.placeholder = 'Speak now...';
+                userInput.disabled = true;
+                sendButton.disabled = true;
+                researchButton.disabled = true; // Disable other buttons while listening
+                canvasButton.disabled = true;
+                mapButton.disabled = true;
+                clearChatButton.disabled = true;
+            });
+
+            recognition.addEventListener('result', (event) => {
+                const transcript = event.results[0][0].transcript;
+                userInput.value = transcript;
+                micButton.classList.remove('active');
+                micStatus.style.display = 'none';
+                userInput.placeholder = 'Type your message...';
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                researchButton.disabled = false; // Re-enable other buttons
+                canvasButton.disabled = false;
+                mapButton.disabled = false;
+                clearChatButton.disabled = false;
+                sendMessage(transcript);
+            });
+
+            recognition.addEventListener('end', () => {
+                micButton.classList.remove('active');
+                micStatus.style.display = 'none';
+                userInput.placeholder = 'Type your message...';
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                researchButton.disabled = false;
+                canvasButton.disabled = false;
+                mapButton.disabled = false;
+                clearChatButton.disabled = false;
+            });
+
+            recognition.addEventListener('error', (event) => {
+                console.error('Speech recognition error:', event.error);
+                micStatus.textContent = `Error: ${event.error}`;
+                micStatus.style.color = '#ef4444';
+                micStatus.style.display = 'inline';
+
+                setTimeout(() => {
+                    micButton.classList.remove('active');
+                    micStatus.style.display = 'none';
+                    micStatus.style.color = '#64748b';
+                    userInput.placeholder = 'Type your message...';
+                    userInput.disabled = false;
+                    sendButton.disabled = false;
+                    researchButton.disabled = false;
+                    canvasButton.disabled = false;
+                    mapButton.disabled = false;
+                    clearChatButton.disabled = false;
+                }, 2000);
+            });
+        }
+
+
+        // Event listeners for feature buttons
+        researchButton.addEventListener('click', () => {
+            const lastUserMessage = chatHistory.length > 0 && chatHistory[chatHistory.length - 1].role === 'user' ? chatHistory[chatHistory.length - 1].parts[0].text : "general knowledge";
+            sendMessage(`Perform deep research on "${lastUserMessage.substring(0, 50)}..."`);
+        });
+
+        canvasButton.addEventListener('click', () => {
+            const lastUserMessage = chatHistory.length > 0 && chatHistory[chatHistory.length - 1].role === 'user' ? chatHistory[chatHistory.length - 1].parts[0].text : "a new concept";
+            sendMessage(`Describe a simple diagram concept for "${lastUserMessage.substring(0, 50)}..." that could be drawn on a canvas.`);
+        });
+
+        mapButton.addEventListener('click', () => {
+            const lastUserMessage = chatHistory.length > 0 && chatHistory[chatHistory.length - 1].role === 'user' ? chatHistory[chatHistory.length - 1].parts[0].text : "a famous landmark";
+            sendMessage(`Provide geographical information or suggest a location for a map based on "${lastUserMessage.substring(0, 50)}..."`);
+        });
+
+        // NEW: Event listener for the Clear Chat button
+        clearChatButton.addEventListener('click', clearChatHistory);
+
+
+        // Set focus on input when the page loads and initialize chat history
+        window.onload = () => {
+            userInput.focus();
+            if (chatHistory.length === 0) {
+                 addMessage("Hi there! What can I help you with today?", 'ai');
+                 chatHistory.push({ role: "model", parts: [{ text: "Hi there! What can I help you with today?" }] });
+            }
+        };
+    </script>
+</body>
+</html>
