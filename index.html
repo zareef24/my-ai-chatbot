@@ -11,10 +11,16 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
+            /* Updated for a motivational gradient background */
+            background: linear-gradient(135deg, #a7bfe8, #619afc); /* Soft blue to vibrant blue */
+            /* Or for a more purple/pink motivational feel: */
+            /* background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%); */
+            /* Or even warmer: */
+            /* background: linear-gradient(135deg, #fcecd4 0%, #ffc0cb 100%); */
+            overflow: hidden; /* Prevent scrolling on body */
         }
         .chat-container {
-            max-height: 70vh;
+            max-height: 70vh; /* Max height for the scrollable chat history */
             overflow-y: auto;
             scroll-behavior: smooth;
         }
@@ -66,8 +72,9 @@
       gtag('config', 'G-J4E29XDPE6'); // YOUR GOOGLE ANALYTICS MEASUREMENT ID
     </script>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
-    <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-xl flex flex-col h-[90vh]">
+<body class="flex items-center justify-center h-screen p-4">
+    <!-- Main Chatbot Container - now wider and fills more of the screen -->
+    <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-4xl flex flex-col h-full mx-auto">
         <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">My Cool AI Chatbot</h1>
 
         <!-- Chat History -->
@@ -219,7 +226,8 @@
                     contents: payloadContents
                 };
 
-                const apiKey = "AIzaSyDG9IMFG6yuHuvERTU7ZnvlHjNftRd-Dac"; 
+                // Your API Key has been preserved here:
+                const apiKey = "AIzaSyDG9IMFG6yuHuvERTU7ZnvlHjNftRd-Dac"; // YOUR GOOGLE CLOUD API KEY
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
                 const response = await fetch(apiUrl, {
@@ -338,5 +346,10 @@
 </html>
 
         
+
+               
+                   
+            
+            
             
             
