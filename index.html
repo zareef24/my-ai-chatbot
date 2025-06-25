@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Cool AI Chatbot - With Memory</title>
+    <title>My Cool AI Chatbot</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
@@ -11,11 +11,12 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
+            /* Updated for a motivational gradient background */
             background: linear-gradient(135deg, #a7bfe8, #619afc); /* Soft blue to vibrant blue */
             overflow: hidden; /* Prevent scrolling on body */
         }
         .chat-container {
-            max-height: calc(100vh - 200px); /* Adjust based on header/footer height */
+            max-height: 70vh; /* Max height for the scrollable chat history */
             overflow-y: auto;
             scroll-behavior: smooth;
         }
@@ -57,23 +58,6 @@
             0%, 100% { opacity: 0.2; }
             50% { opacity: 1; }
         }
-        .chat-item {
-            padding: 10px;
-            cursor: pointer;
-            border-radius: 8px;
-            margin-bottom: 5px;
-            transition: background-color 0.2s;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .chat-item:hover {
-            background-color: #cbd5e1; /* Slate 300 on hover */
-        }
-        .chat-item.active {
-            background-color: #a3b2dc; /* A darker shade to indicate active */
-            font-weight: bold;
-        }
     </style>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-J4E29XDPE6"></script>
@@ -84,29 +68,16 @@
       gtag('config', 'G-J4E29XDPE6'); // YOUR GOOGLE ANALYTICS MEASUREMENT ID
     </script>
 </head>
-<body class="flex min-h-screen p-4">
-    <!-- Chat List Sidebar -->
-    <div id="chat-list-sidebar" class="bg-white p-4 rounded-xl shadow-2xl mr-4 w-64 flex flex-col h-full overflow-y-auto">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">Your Chats</h2>
-        <button id="new-chat-button" class="bg-green-500 text-white p-2 rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-md mb-4">
-            + New Chat
-        </button>
-        <div id="user-id-display" class="text-xs text-gray-600 mb-4 break-all">User ID: Loading...</div>
-        <div id="chats-list" class="flex-1 overflow-y-auto">
-            <!-- Chat items will be loaded here -->
-            <p class="text-gray-500 text-sm">No chats yet.</p>
-        </div>
-    </div>
-
+<body class="flex items-center justify-center h-screen p-4">
     <!-- Main Chatbot Container -->
-    <div class="bg-white p-6 rounded-xl shadow-2xl flex-1 flex flex-col h-full mx-auto max-w-4xl">
-        <h1 id="current-chat-title" class="text-3xl font-bold text-center text-gray-800 mb-6 truncate">My Cool AI Chatbot</h1>
+    <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-4xl flex flex-col h-full mx-auto">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">My Cool AI Chatbot</h1>
 
         <!-- Chat History -->
         <div id="chat-history" class="flex-1 overflow-y-auto p-4 bg-gray-50 rounded-lg mb-4 shadow-inner">
             <!-- Messages will be appended here -->
             <div class="flex flex-col items-start message-bubble ai-message">
-                <span>Hello! I'm your AI Chatbot. What's on your mind today?</span>
+                <span>Hello! I'm your AI Chatbot. How can I assist you today?</span>
             </div>
         </div>
 
@@ -145,22 +116,7 @@
         <div id="status-message" class="text-center text-sm mt-2 text-gray-600"></div>
     </div>
 
-    <!-- Firebase SDKs -->
-    <script type="module">
-        // Import Firebase modules using the specified version for Firebase JS SDK
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-        // Global Firebase instances and user ID. Initialize to null.
-        let app;
-        let db;
-        let auth;
-        let userId = null;
-        let currentChatId = null;
-        let currentChatTitle = "My Cool AI Chatbot"; // Default title for header
-
-        // Get references to DOM elements
+    <script>
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
         const voiceInputButton = document.getElementById('voice-input-button');
@@ -171,165 +127,218 @@
         const selectedImagePreview = document.getElementById('selected-image-preview');
         const imageName = document.getElementById('image-name');
         const removeImageButton = document.getElementById('remove-image-button');
-        const newChatButton = document.getElementById('new-chat-button');
-        const chatsList = document.getElementById('chats-list');
-        const currentChatTitleElement = document.getElementById('current-chat-title');
-        const userIdDisplay = document.getElementById('user-id-display');
 
-        // Variables for image upload and voice recording
+        // chatHistoryArray is used to send context to the AI, it will clear on page refresh
+        let chatHistoryArray = [];
         let selectedImageBase64 = null;
         let isVoiceRecording = false;
         let mediaRecorder;
         let audioChunks = [];
 
-        // In-memory array to hold chat history for AI context.
-        // This is separate from what's displayed, as image data might be large.
-        let chatHistoryArray = [];
-
-        // --- Firebase Initialization and Authentication ---
-        async function initFirebaseAndAuth() {
-            // Retrieve Firebase config from global __firebase_config variable provided by Canvas
-            // Fallback to an empty object if not defined (for local testing/GitHub Pages)
-            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-            // Retrieve Canvas app ID, or use a default for GitHub Pages.
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-chatbot-app';
-
-            // Check if Firebase config is actually available
-            if (Object.keys(firebaseConfig).length === 0) {
-                console.error("Firebase config is missing. Please ensure your Firebase project is set up correctly.");
-                statusMessage.textContent = "Error: Firebase setup incomplete. Chat history cannot be saved. Please check Firebase console.";
-                return;
-            }
-
-            // Initialize Firebase app and services
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-
-            // Listen for authentication state changes (user login/logout)
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    // User is signed in. Set the userId and display it.
-                    userId = user.uid;
-                    userIdDisplay.textContent = `User ID: ${userId}`;
-                    console.log("Firebase: User signed in:", userId);
-
-                    // Load the list of previous chats for this user
-                    loadChatList();
-
-                    // If no specific chat is currently selected, create a new one to start
-                    if (!currentChatId) {
-                        createNewChat();
-                    }
-                } else {
-                    // User is signed out or not yet authenticated.
-                    // Attempt anonymous sign-in, which creates a new anonymous user if none exists.
-                    // Use __initial_auth_token for Canvas environment, fallback to anonymous for GitHub Pages.
-                    if (typeof __initial_auth_token !== 'undefined') {
-                        try {
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                            console.log("Firebase: Signed in with custom token (Canvas environment).");
-                        } catch (error) {
-                            console.error("Error signing in with custom token:", error);
-                            statusMessage.textContent = "Authentication failed. Chat history won't save.";
-                        }
-                    } else {
-                        try {
-                            await signInAnonymously(auth);
-                            console.log("Firebase: Signed in anonymously (GitHub Pages/Local).");
-                        } catch (error) {
-                            console.error("Error signing in anonymously:", error);
-                            statusMessage.textContent = "Authentication failed. Chat history won't save.";
-                        }
-                    }
-                }
-            });
+        // Function to scroll chat to bottom
+        function scrollToBottom() {
+            chatHistory.scrollTop = chatHistory.scrollHeight;
         }
 
-        // --- Chat Management Functions ---
+        // Display message function
+        function displayMessage(message, sender, image = null) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message-bubble', 'flex', 'flex-col');
 
-        // Creates a brand new chat session
-        async function createNewChat() {
-            if (!userId) {
-                console.warn("User not authenticated yet. Cannot create new chat.");
-                statusMessage.textContent = "Waiting for authentication to create chat...";
-                return;
+            if (sender === 'user') {
+                messageElement.classList.add('user-message', 'self-end');
+            } else {
+                messageElement.classList.add('ai-message', 'self-start');
             }
 
-            // Generate a unique ID for the new chat document in Firestore
-            const newChatRef = doc(collection(db, 'artifacts', typeof __app_id !== 'undefined' ? __app_id : 'default-chatbot-app', 'users', userId, 'chats'));
-            currentChatId = newChatRef.id; // Set this as the active chat ID
-            currentChatTitle = "New Chat"; // Set a temporary title
-            currentChatTitleElement.textContent = currentChatTitle; // Update header display
+            if (image) {
+                const imgElement = document.createElement('img');
+                imgElement.src = image;
+                imgElement.classList.add('image-preview', 'mb-2');
+                messageElement.appendChild(imgElement);
+            }
 
-            // Clear the display and in-memory history for the new chat
-            chatHistory.innerHTML = `
-                <div class="flex flex-col items-start message-bubble ai-message">
-                    <span>Hello! I'm your AI Chatbot. What's on your mind today?</span>
-                </div>
-            `;
-            chatHistoryArray = [{ role: 'ai', parts: [{ text: "Hello! I'm your AI Chatbot. What's on your mind today?" }] }]; // Add initial AI message to history
+            const textElement = document.createElement('span');
+            textElement.textContent = message;
+            messageElement.appendChild(textElement);
+
+            chatHistory.appendChild(messageElement);
             scrollToBottom();
-            console.log("Started new chat:", currentChatId);
-
-            // Highlight the new chat in the sidebar (will be added by loadChatList's snapshot listener)
-            updateChatListActive(currentChatId);
-
-            // Add the initial chat document to Firestore.
-            // The title will be updated later with the first user message.
-            await setDoc(newChatRef, {
-                title: "New Chat",
-                createdAt: serverTimestamp(),
-                lastUpdated: serverTimestamp()
-            });
-
-            // Start listening for messages in this new chat
-            loadMessagesForChat(currentChatId);
         }
 
-        // Loads messages for a specific chat from Firestore and sets up a real-time listener
-        function loadMessagesForChat(chatId) {
-            if (!userId || !chatId) {
-                console.warn("User or Chat ID not available to load messages.");
+        // Show loading indicator
+        function showLoading() {
+            const loadingElement = document.createElement('div');
+            loadingElement.id = 'loading-indicator';
+            loadingElement.classList.add('message-bubble', 'ai-message', 'self-start', 'loading-dots');
+            loadingElement.innerHTML = '<span>.</span><span>.</span><span>.</span>';
+            chatHistory.appendChild(loadingElement);
+            scrollToBottom();
+        }
+
+        // Hide loading indicator
+        function hideLoading() {
+            const loadingElement = document.getElementById('loading-indicator');
+            if (loadingElement) {
+                loadingElement.remove();
+            }
+        }
+
+        // Handle sending message
+        async function sendMessage() {
+            const prompt = userInput.value.trim();
+            if (!prompt && !selectedImageBase64) {
+                statusMessage.textContent = 'Please enter a message or select an image.';
+                setTimeout(() => statusMessage.textContent = '', 3000);
                 return;
             }
 
-            currentChatId = chatId; // Set the active chat ID
-            currentChatTitleElement.textContent = "Loading Chat..."; // Show loading state in header
-            chatHistory.innerHTML = ''; // Clear existing messages from the display
-            chatHistoryArray = []; // Clear in-memory chat history
+            // Display user message in the UI
+            displayMessage(prompt, 'user', selectedImageBase64);
 
-            const messagesRef = collection(db, 'artifacts', typeof __app_id !== 'undefined' ? __app_id : 'default-chatbot-app', 'users', userId, 'chats', chatId, 'messages');
-            // Query messages ordered by timestamp
-            const q = query(messagesRef, orderBy('timestamp'));
+            // Add user message to in-memory history for AI context
+            const userParts = [{ text: prompt }];
+            if (selectedImageBase64) {
+                userParts.push({
+                    inlineData: {
+                        mimeType: "image/png", // Assuming PNG, adjust if needed
+                        data: selectedImageBase64.split(',')[1] // Remove "data:image/png;base64," prefix
+                    }
+                });
+            }
+            chatHistoryArray.push({ role: "user", parts: userParts });
 
-            // Set up a real-time listener (onSnapshot) for messages in this chat
-            onSnapshot(q, (snapshot) => {
-                snapshot.docChanges().forEach((change) => {
-                    const messageData = change.doc.data();
-                    const messageId = change.doc.id;
+            // Clear input and image preview
+            userInput.value = '';
+            selectedImageBase64 = null;
+            imagePreviewContainer.classList.add('hidden');
+            selectedImagePreview.src = '';
+            imageName.textContent = '';
 
-                    if (change.type === "added") {
-                        // Prevent adding duplicate messages if the listener re-fires
-                        if (!chatHistoryArray.some(msg => msg.id === messageId)) {
-                             // Extract text and image from message data
-                            const messageText = messageData.text || '';
-                            // Only include image data if present and if it's the base64 string
-                            const messageImage = messageData.image && typeof messageData.image === 'string' ? messageData.image : null;
-                            
-                            // Display the message in the chat UI
-                            displayMessage(messageText, messageData.sender, messageImage);
-                            
-                            // Add to in-memory history for AI context
-                            const parts = [{ text: messageText }];
-                            if (messageImage) {
-                                parts.push({ inlineData: { mimeType: "image/png", data: messageImage.split(',')[1] } });
-                            }
-                            chatHistoryArray.push({ id: messageId, role: messageData.sender, parts: parts });
+            showLoading(); // Show loading indicator
 
-                            // If this is the first user message in a "New Chat", update its title
-                            if (chatHistoryArray.length === 2 && messageData.sender === 'user' && currentChatTitle === "New Chat") {
-                                const newTitle = messageText.substring(0, 50) + (messageText.length > 50 ? '...' : '');
-                                const chatRef = doc(db, 'artifacts', typeof __app_id !== 'undefined' ? __app_id : 'default-chatbot-app', 'users', use
-            
+            try {
+                const payload = {
+                    contents: chatHistoryArray // Send the full in-memory conversation history for context
+                };
+
+                // Your Google Cloud API Key (preserved from previous steps):
+                const apiKey = "AIzaSyDG9IMFG6yuHuvERTU7ZnvlHjNftRd-Dac"; // YOUR GOOGLE CLOUD API KEY
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const aiResponse = result.candidates[0].content.parts[0].text;
+                    displayMessage(aiResponse, 'ai');
+
+                    // Add AI response to in-memory history for next turn's context
+                    chatHistoryArray.push({ role: 'ai', parts: [{ text: aiResponse }] });
+                } else {
+                    displayMessage("Sorry, I couldn't get a response. Please try again.", 'ai');
+                    console.error("Gemini API response structure unexpected:", result);
+                }
+
+            } catch (error) {
+                console.error('Error fetching AI response:', error);
+                displayMessage('Oops! Something went wrong. Please try again.', 'ai');
+            } finally {
+                hideLoading(); // Hide loading indicator
+            }
+        }
+
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Image upload handling
+        imageUpload.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    selectedImageBase64 = e.target.result;
+                    selectedImagePreview.src = selectedImageBase64;
+                    imageName.textContent = file.name;
+                    imagePreviewContainer.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                selectedImageBase64 = null;
+                imagePreviewContainer.classList.add('hidden');
+                selectedImagePreview.src = '';
+                imageName.textContent = '';
+            }
+        });
+
+        removeImageButton.addEventListener('click', () => {
+            selectedImageBase64 = null;
+            imageUpload.value = ''; // Clear the file input
+            imagePreviewContainer.classList.add('hidden');
+            selectedImagePreview.src = '';
+            imageName.textContent = '';
+        });
+
+        // Voice input handling (still a placeholder, no actual STT integration)
+        voiceInputButton.addEventListener('click', async () => {
+            if (!isVoiceRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        audioChunks = [];
+                        console.log('Audio recorded:', audioBlob);
+                        statusMessage.textContent = 'Voice recording complete. (Speech-to-text integration not yet implemented)';
+                        setTimeout(() => statusMessage.textContent = '', 5000);
+                    };
+
+                    mediaRecorder.start();
+                    isVoiceRecording = true;
+                    voiceInputButton.classList.add('bg-red-500', 'hover:bg-red-600');
+                    voiceInputButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    statusMessage.textContent = 'Recording voice... Click again to stop.';
+                } catch (err) {
+                    console.error('Error accessing microphone:', err);
+                    statusMessage.textContent = 'Microphone access denied or error: ' + err.message;
+                    setTimeout(() => statusMessage.textContent = '', 5000);
+                }
+            } else {
+                mediaRecorder.stop();
+                isVoiceRecording = false;
+                voiceInputButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                voiceInputButton.classList.remove('bg-red-500', 'hover:bg-red-600');
+                statusMessage.textContent = 'Processing voice...';
+            }
+        });
+
+        // Initial scroll to bottom (for the initial "Hello" message)
+        scrollToBottom();
+    </script>
+</body>
+</html>
+
+           
         
+                    
+            
+            
+
+                            
